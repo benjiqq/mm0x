@@ -14,7 +14,7 @@ a.set_keys_exchange_file()
 client = a.afacade.get_client(exc.BINANCE)
 
 import redis
-r = redis.Redis(host='localhost', port=6379, db=0)
+#r = redis.Redis(host='localhost', port=6379, db=0)
 
 def get_average(token):
     market = models.market_from(token,"ETH")

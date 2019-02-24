@@ -8,6 +8,7 @@ import requests
 import json
 from web3 import Web3, HTTPProvider
 import datetime
+from tokens import *
 
 privateKey = os.environ['PRIVATEKEY']
 INFURA_KEY = os.environ['INFURA_KEY']
@@ -17,12 +18,7 @@ acct = w3.eth.account.privateKeyToAccount(privateKey)
 myaddr = (acct.address).lower()
 #print (myaddr)
 
-tokens = {"0x1985365e9f78359a9b6ad760e32412f4a445e862":"REP",
-"0x0d8775f648430679a709e98d2b0cb6250d2887ef":"BAT",
-"0x0f5d2fb29fb7d3cfee444a200298f468908cc942":"MANA",
-"0xa4e8c3ec456107ea67d3075bf9e3df3a75823db0":"LOOM",
-"0x0abdace70d3790235af448c88547603b945604ea":"DNT",
-"0x41e5560054824ea6b0732e656e3ad64e20e94e45":"CVC"}
+
 
 def get_ethusd_map():
     """ get candle and convert to dict of daily prices """ 
@@ -38,14 +34,27 @@ def get_ethusd_map():
 def show_maker_fills():
     print ('volume maker analysis for ' + myaddr)
     eth_usd_map = get_ethusd_map()
+    #print (eth_usd_map)
+    eth_usd_map["2019-02-20"] = 142.71
+    eth_usd_map['2019-02-10'] = 100
     
     fills = get_fills(address = myaddr)
     maker_fills = list(filter(lambda x: x["makerAddress"]==myaddr,fills))
+    taker_fills = list(filter(lambda x: x["makerAddress"]!=myaddr,fills))
     
     #print ("*** date\tusd_volume \t eth_usd\t eth_volume\t volume\t filltype \t symbol***")
     print ("*** date\tusd_volume \tfilltype \t symbol***")
     total_usd = 0
-    for fill in maker_fills[:]:        
+
+    maker_fills.reverse()
+    print (myaddr)
+    txhashes = set()
+    for fill in maker_fills[:]:
+        print (fill) 
+        ta = fill["takerAddress"]
+        if ta==myaddr: print ("selftrade! ",fill)        
+        
+        #print (fill)
         fill_type = fill["type"]
         z = lambda x: "BUY" if x=="SELL" else "SELL"
         maker_type = z(fill_type)
@@ -54,17 +63,30 @@ def show_maker_fills():
         sym = tokens[bt]
         ts = datetime.datetime.utcfromtimestamp(t)
         tsfd = datetime.datetime.strftime(ts,'%Y-%m-%d')
-        #print (tsfd)
-        eth_usd = eth_usd_map[tsfd]
+        #if ts.day <= 10: continue
+        #print (ts)
+        try:
+            eth_usd = eth_usd_map[tsfd]
+        except:
+            continue
+        if ts.day <= 19: continue
         #print (fill)
         eth_volume = float(fill["filledQuoteTokenAmount"])
         v = float(fill["filledBaseTokenAmount"])
+        p = eth_volume/v
+        #print (eth_volume,v,p)
         usd_volume = eth_usd * eth_volume
-        #print (tsfd,"\t",v,"\t",eth_usd,"\t",round(eth_volume,3),"\t",round(usd_volume,2),"\t",fill_type,"\t",sym)
-        if ts.day >= 13:
-            print (tsfd,"\t",round(usd_volume,2),"\t",maker_type,"\t",sym)
+        #print (ts.day)
+        if ts.day >= 1:
+            th = fill["transactionHash"]
+            txhashes.add(th)
+            print (tsfd,"\t",round(usd_volume,2),"\t",maker_type,"\t",sym,"\t",p)
             total_usd += usd_volume
+    print ("maker_fills ",len(maker_fills))            
+    print ("taker_fills ",len(taker_fills))            
     print ("total_usd ",round(total_usd,0))
+    print (len(txhashes))
+    #print (txhashes)
 
     #print (taker_fills)
     #taker_fills = list(filter(lambda x: x["makerAddress"]!=myaddr,fills))
